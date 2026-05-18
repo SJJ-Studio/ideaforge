@@ -1060,6 +1060,8 @@ loadStats();
       fill.style.width = '10%';
 
       const rawText = await fetchRedditData(niche, selectedSources);
+      console.log('Raw text length:', rawText.length);
+      console.log('Raw text preview:', rawText.slice(0, 200));
 
       text.textContent = 'Running pain sourcing...';
       fill.style.width = '25%';
