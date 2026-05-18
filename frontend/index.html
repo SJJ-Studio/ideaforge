@@ -661,7 +661,7 @@
       </svg>
       Sessions
     </button>
-    
+
     <button class="nav-item" onclick="setPage('scoring')">
       <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M3 13V9M7 13V5M11 13V7M15 13V3" stroke-linecap="round"/>
@@ -903,7 +903,7 @@
 
     if (page === 'sessions') {
       try {
-        const res = await fetch('http://localhost:8000/sessions');
+        const res = await fetch('https://ideaforge.up.railway.app/sessions');
         const sessions = await res.json();
 
         const rows = sessions.map(s => {
@@ -955,7 +955,7 @@
 
   async function loadStats() {
     try {
-      const res = await fetch('http://localhost:8000/stats');
+      const res = await fetch('https://ideaforge.up.railway.app/stats');
       const data = await res.json();
       
       document.getElementById('statNiches').textContent = data.unique_niches;
@@ -987,7 +987,7 @@ loadStats();
     btn.style.pointerEvents = 'none';
 
     try {
-      const res = await fetch('http://localhost:8000/research/suggest-subreddits', {
+      const res = await fetch('https://ideaforge.up.railway.app/research/suggest-subreddits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1037,7 +1037,7 @@ loadStats();
       text.textContent = 'Running pain sourcing...';
       fill.style.width = '20%';
 
-      const painRes = await fetch('http://localhost:8000/research/pain-sourcing', {
+      const painRes = await fetch('https://ideaforge.up.railway.app/research/pain-sourcing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ niche, idea, audience, sources: selectedSources })
@@ -1047,7 +1047,7 @@ loadStats();
       text.textContent = 'Mapping competitors...';
       fill.style.width = '50%';
 
-      const compRes = await fetch('http://localhost:8000/research/competitor-mapping', {
+      const compRes = await fetch('https://ideaforge.up.railway.app/research/competitor-mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ niche, idea, audience, sources: selectedSources })
@@ -1057,7 +1057,7 @@ loadStats();
       text.textContent = 'Scoring and deciding...';
       fill.style.width = '80%';
 
-      const scoreRes = await fetch('http://localhost:8000/research/score', {
+      const scoreRes = await fetch('https://ideaforge.up.railway.app/research/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
