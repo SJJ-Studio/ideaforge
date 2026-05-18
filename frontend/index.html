@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IdeaForge — Validation Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0c0c0e;
+      --surface: #141416;
+      --surface-2: #1c1c1f;
+      --surface-3: #242428;
+      --border: rgba(255,255,255,0.07);
+      --border-active: rgba(255,255,255,0.15);
+      --text-primary: #f0ede8;
+      --text-secondary: #7a7875;
+      --text-muted: #3e3d3b;
+      --accent: #d4f0a0;
+      --accent-dim: rgba(212,240,160,0.1);
+      --accent-dim-2: rgba(212,240,160,0.05);
+      --amber: #f0c060;
+      --amber-dim: rgba(240,192,96,0.1);
+      --coral: #f08070;
+      --coral-dim: rgba(240,128,112,0.08);
+      --blue: #80b8f0;
+      --blue-dim: rgba(128,184,240,0.08);
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --radius: 10px;
+      --radius-lg: 16px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .logo-mark {
+      width: 26px;
+      height: 26px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-mark svg { width: 14px; height: 14px; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(212,240,160,0.2);
+      border-radius: 100px;
+      padding: 3px 10px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow-y: auto;
+    }
+
+    .sidebar-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 10px 4px;
+      margin-top: 8px;
+    }
+
+    .sidebar-label:first-child { margin-top: 0; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s;
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--surface-2); color: var(--text-primary); }
+
+    .nav-item.active {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    .nav-item.active .nav-icon { opacity: 1; }
+
+    .nav-badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: var(--surface-3);
+      color: var(--text-secondary);
+      border-radius: 100px;
+      padding: 1px 7px;
+    }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Main content */
+    .main {
+      overflow-y: auto;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .page-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+    }
+
+    .page-sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Input panel */
+    .input-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+    }
+
+    .input-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 0.01em;
+    }
+
+    .step-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 2px 8px;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+
+    .field label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      letter-spacing: 0.05em;
+    }
+
+    .field input, .field select, .field textarea {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: var(--border-active);
+    }
+
+    .field input::placeholder, .field textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .field select option { background: var(--surface-2); }
+
+    .field textarea { resize: vertical; min-height: 72px; }
+
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .source-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      user-select: none;
+    }
+
+    .source-toggle:hover { border-color: var(--border-active); color: var(--text-primary); }
+
+    .source-toggle.selected {
+      border-color: rgba(212,240,160,0.3);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .source-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+
+    .source-toggle.selected .source-dot { opacity: 1; }
+
+    .btn-row { display: flex; gap: 10px; align-items: center; }
+
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--accent);
+      color: #0c0c0e;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      letter-spacing: 0.01em;
+    }
+
+    .btn-primary:hover { opacity: 0.88; }
+
+    .btn-primary svg { width: 14px; height: 14px; }
+
+    .btn-ghost {
+      padding: 10px 16px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-ghost:hover { border-color: var(--border-active); color: var(--text-primary); }
+
+    .btn-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-left: auto;
+      font-family: var(--font-mono);
+    }
+
+    /* Modules */
+    .modules-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .module-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+
+    .module-card:hover { border-color: var(--border-active); }
+
+    .module-card.active { border-color: rgba(212,240,160,0.2); }
+
+    .module-num {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .module-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .module-icon.green { background: var(--accent-dim); }
+    .module-icon.amber { background: var(--amber-dim); }
+    .module-icon.blue { background: var(--blue-dim); }
+
+    .module-icon svg { width: 18px; height: 18px; }
+
+    .module-name {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .module-desc {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+
+    .module-status {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-dot.ready { background: var(--accent); }
+    .status-dot.pending { background: var(--amber); }
+    .status-dot.locked { background: var(--text-muted); }
+
+    .module-status.ready { color: var(--accent); }
+    .module-status.pending { color: var(--amber); }
+    .module-status.locked { color: var(--text-muted); }
+
+    /* Sessions */
+    .sessions-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .sessions-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sessions-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .session-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 80px 80px;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+      transition: background 0.1s;
+      cursor: pointer;
+    }
+
+    .session-row:last-child { border-bottom: none; }
+    .session-row:hover { background: var(--surface-2); }
+
+    .session-name {
+      font-size: 13.5px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .session-niche {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .session-col {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .score-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .score-track {
+      flex: 1;
+      height: 3px;
+      background: var(--surface-3);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+
+    .score-fill {
+      height: 100%;
+      border-radius: 100px;
+    }
+
+    .score-fill.high { background: var(--accent); }
+    .score-fill.mid { background: var(--amber); }
+    .score-fill.low { background: var(--coral); }
+
+    .score-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      min-width: 24px;
+      text-align: right;
+    }
+
+    .verdict {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 100px;
+      text-align: center;
+    }
+
+    .verdict.go { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(212,240,160,0.2); }
+    .verdict.watch { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(240,192,96,0.2); }
+    .verdict.kill { background: var(--coral-dim); color: var(--coral); border: 1px solid rgba(240,128,112,0.2); }
+
+    /* Empty state */
+    .empty-placeholder {
+      padding: 48px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      display: none;
+    }
+
+    .empty-placeholder.visible { display: block; }
+
+    /* Stats bar */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+    }
+
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .stat-sub {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.amber { color: var(--amber); }
+
+    /* Loading state */
+    .loading-bar {
+      height: 2px;
+      background: var(--surface-3);
+      border-radius: 100px;
+      overflow: hidden;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .loading-bar.active { display: block; }
+
+    .loading-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 100px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .loading-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 8px;
+      display: none;
+      animation: pulse 1.5s infinite;
+    }
+
+    .loading-text.active { display: block; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 100px; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 14 14" fill="none">
+          <path d="M7 1L13 4.5V9.5L7 13L1 9.5V4.5L7 1Z" fill="#0c0c0e" stroke="#0c0c0e" stroke-width="0.5"/>
+          <circle cx="7" cy="7" r="2" fill="#d4f0a0"/>
+        </svg>
+      </div>
+      IdeaForge
+    </div>
+    <div class="header-right">
+      <span class="status-pill">v0.1 — internal</span>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <span class="sidebar-label">Workspace</span>
+    <button class="nav-item active" onclick="setPage('research')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+      </svg>
+      Research
+    </button>
+    <button class="nav-item" onclick="setPage('sessions')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5.5h6M5 10.5h4"/>
+      </svg>
+      Sessions
+    </button>
+    <button class="nav-item" onclick="setPage('scoring')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 13V9M7 13V5M11 13V7M15 13V3" stroke-linecap="round"/>
+      </svg>
+      Scoring
+    </button>
+
+    <span class="sidebar-label">Pipeline</span>
+    <button class="nav-item" onclick="setPage('ideas')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="8" cy="6" r="3.5"/><path d="M6 9.5C6 11 7 12 8 12.5C9 12 10 11 10 9.5"/>
+      </svg>
+      Idea Pool
+      <span class="nav-badge">7</span>
+    </button>
+    <button class="nav-item" onclick="setPage('competitors')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M2 8h3l2-5 2 10 2-5h3"/>
+      </svg>
+      Competitors
+    </button>
+
+    <div class="sidebar-bottom">
+      <button class="nav-item" onclick="setPage('settings')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14"/>
+        </svg>
+        Settings
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-label">Ideas Sourced</div>
+        <div class="stat-value" id="statNiches">—</div>
+        <div class="stat-sub" id="statNichesSub">loading...</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sessions Run</div>
+        <div class="stat-value" id="statSessions">—</div>
+        <div class="stat-sub">total sessions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Top Score</div>
+        <div class="stat-value accent" id="statTopScore">—</div>
+        <div class="stat-sub" id="statTopScoreNiche">loading...</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">GO Verdicts</div>
+        <div class="stat-value amber" id="statGo">—</div>
+        <div class="stat-sub">ready to validate</div>
+      </div>
+    </div>
+
+    <!-- Input Panel -->
+    <div class="input-panel">
+      <div class="input-panel-header">
+        <span class="panel-title">New Research Session</span>
+        <span class="step-badge">Module 1 — Pain Sourcing</span>
+      </div>
+
+      <div class="input-row">
+        <div class="field">
+          <label>Niche / Space</label>
+          <input type="text" id="niche" placeholder="e.g. travel planning, personal finance" />
+        </div>
+        <div class="field">
+          <label>Specific Idea (optional)</label>
+          <input type="text" id="idea" placeholder="e.g. nomad visa tracker" />
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom: 16px;">
+        <label>Target Audience (optional)</label>
+        <input type="text" id="audience" placeholder="e.g. long-term digital nomads, solo travelers" />
+      </div>
+
+      <div class="field" style="margin-bottom: 16px;">
+        <label>Subreddits</label>
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="subreddits" placeholder="Click suggest or enter manually, comma separated" style="flex: 1;" />
+            <button class="btn-ghost" onclick="suggestSubreddits()" id="suggestBtn">Suggest</button>
+        </div>
+        <div id="subreddit-hint" style="font-size: 11px; color: var(--text-muted); margin-top: 4px;"></div>
+    </div>
+
+      <div class="field" style="margin-bottom: 16px;">
+        <label>Data Sources</label>
+        <div class="sources-grid">
+          <div class="source-toggle selected" onclick="toggleSource(this)">
+            <div class="source-dot"></div>Reddit
+          </div>
+          <div class="source-toggle selected" onclick="toggleSource(this)">
+            <div class="source-dot"></div>App Reviews
+          </div>
+          <div class="source-toggle selected" onclick="toggleSource(this)">
+            <div class="source-dot"></div>G2 / Capterra
+          </div>
+          <div class="source-toggle selected" onclick="toggleSource(this)">
+            <div class="source-dot"></div>Competitors
+          </div>
+        </div>
+      </div>
+
+      <div class="loading-bar" id="loadingBar">
+        <div class="loading-fill" id="loadingFill"></div>
+      </div>
+      <div class="loading-text" id="loadingText">Scraping Reddit — r/digitalnomad, r/solotravel...</div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="startResearch()">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="6" cy="6" r="4"/><path d="M9.5 9.5L13 13"/>
+          </svg>
+          Run Research
+        </button>
+        <button class="btn-ghost">Load Previous</button>
+        <span class="btn-hint">~2-4 min per session</span>
+      </div>
+    </div>
+
+    <!-- Modules -->
+    <div class="modules-row">
+      <div class="module-card active">
+        <div class="module-num">01</div>
+        <div class="module-icon green">
+          <svg viewBox="0 0 18 18" fill="none" stroke="#d4f0a0" stroke-width="1.5">
+            <circle cx="8" cy="8" r="5.5"/><path d="M12 12L16 16"/>
+          </svg>
+        </div>
+        <div class="module-name">Pain Sourcing</div>
+        <div class="module-desc">Scrape Reddit, reviews, and forums to surface real complaints clustered by frequency and intensity.</div>
+        <div class="module-status ready">
+          <div class="status-dot ready"></div>Ready
+        </div>
+      </div>
+      <div class="module-card">
+        <div class="module-num">02</div>
+        <div class="module-icon amber">
+          <svg viewBox="0 0 18 18" fill="none" stroke="#f0c060" stroke-width="1.5">
+            <path d="M3 15V9M7 15V5M11 15V7M15 15V3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="module-name">Competitor Mapping</div>
+        <div class="module-desc">Analyze adjacent tools — what they charge, where reviews fall short, and what gaps remain unaddressed.</div>
+        <div class="module-status pending">
+          <div class="status-dot pending"></div>Runs after Module 1
+        </div>
+      </div>
+      <div class="module-card">
+        <div class="module-num">03</div>
+        <div class="module-icon blue">
+          <svg viewBox="0 0 18 18" fill="none" stroke="#80b8f0" stroke-width="1.5">
+            <path d="M9 3l2 4h4l-3 2.5 1 4.5L9 11.5 5 14l1-4.5L3 7h4z"/>
+          </svg>
+        </div>
+        <div class="module-name">Score & Decide</div>
+        <div class="module-desc">Claude applies your kill criteria and scoring framework to produce a go/no-go with reasoning and price range.</div>
+        <div class="module-status locked">
+          <div class="status-dot locked"></div>Requires Modules 1 + 2
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions -->
+    <div class="sessions-panel">
+      <div class="sessions-header">
+        <span class="sessions-title">Recent Sessions</span>
+        <button class="btn-ghost" style="font-size: 12px; padding: 6px 12px;">View All</button>
+      </div>
+
+      <div class="session-row">
+        <div>
+          <div class="session-name">Nomad Planning Tool</div>
+          <div class="session-niche">Travel Planning · Long-term nomads</div>
+        </div>
+        <div class="session-col">Reddit, Reviews,<br/>Competitors</div>
+        <div class="session-col">2 days ago</div>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill high" style="width: 74%"></div></div>
+          <span class="score-val">74</span>
+        </div>
+        <div class="verdict go">GO</div>
+      </div>
+
+      <div class="session-row">
+        <div>
+          <div class="session-name">Gamified Finance App</div>
+          <div class="session-niche">Personal Finance · Gen Z investors</div>
+        </div>
+        <div class="session-col">Reddit, G2</div>
+        <div class="session-col">5 days ago</div>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill mid" style="width: 51%"></div></div>
+          <span class="score-val">51</span>
+        </div>
+        <div class="verdict watch">WATCH</div>
+      </div>
+
+      <div class="session-row">
+        <div>
+          <div class="session-name">AI Resume Builder</div>
+          <div class="session-niche">Career Tools · Job seekers</div>
+        </div>
+        <div class="session-col">App Reviews, G2</div>
+        <div class="session-col">12 days ago</div>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill low" style="width: 28%"></div></div>
+          <span class="score-val">28</span>
+        </div>
+        <div class="verdict kill">KILL</div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  function toggleSource(el) {
+    el.classList.toggle('selected');
+  }
+
+  async function setPage(page) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    const main = document.querySelector('.main');
+
+    if (page === 'research') {
+      location.reload();
+      return;
+    }
+
+    if (page === 'sessions') {
+      try {
+        const res = await fetch('http://localhost:8000/sessions');
+        const sessions = await res.json();
+
+        const rows = sessions.map(s => {
+          const date = new Date(s.created_at).toLocaleDateString();
+          const verdictClass = s.verdict === 'GO' ? 'go' : s.verdict === 'WATCH' ? 'watch' : 'kill';
+          const scoreClass = s.score >= 70 ? 'high' : s.score >= 40 ? 'mid' : 'low';
+          return `
+            <div class="session-row">
+              <div>
+                <div class="session-name">${s.idea || s.niche}</div>
+                <div class="session-niche">${s.niche} · ${s.audience || 'general'}</div>
+              </div>
+              <div class="session-col">${(s.subreddits || []).slice(0, 3).join(', ')}</div>
+              <div class="session-col">${date}</div>
+              <div class="score-bar">
+                <div class="score-track"><div class="score-fill ${scoreClass}" style="width: ${s.score}%"></div></div>
+                <span class="score-val">${s.score}</span>
+              </div>
+              <div class="verdict ${verdictClass}">${s.verdict}</div>
+            </div>
+          `;
+        }).join('');
+
+        main.innerHTML = `
+          <div>
+            <div class="page-title">Sessions</div>
+            <div class="page-sub">All research sessions saved to date</div>
+          </div>
+          <div class="sessions-panel">
+            <div class="sessions-header">
+              <span class="sessions-title">Research History</span>
+            </div>
+            ${rows.length ? rows : '<div class="empty-placeholder visible">No sessions yet — run your first research session.</div>'}
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+      }
+      return;
+    }
+
+    main.innerHTML = `
+      <div>
+        <div class="page-title">${page.charAt(0).toUpperCase() + page.slice(1)}</div>
+        <div class="page-sub">Coming soon</div>
+      </div>
+    `;
+  }
+
+  async function loadStats() {
+    try {
+      const res = await fetch('http://localhost:8000/stats');
+      const data = await res.json();
+      
+      document.getElementById('statNiches').textContent = data.unique_niches;
+      document.getElementById('statNichesSub').textContent = `across ${data.unique_niches} niche${data.unique_niches !== 1 ? 's' : ''}`;
+      document.getElementById('statSessions').textContent = data.total_sessions;
+      document.getElementById('statTopScore').textContent = data.top_score;
+      document.getElementById('statTopScoreNiche').textContent = data.top_score_niche || '—';
+      document.getElementById('statGo').textContent = data.go_count;
+    } catch (err) {
+      console.error('Failed to load stats:', err);
+    }
+  }
+
+loadStats();
+
+  async function suggestSubreddits() {
+    const niche = document.getElementById('niche').value.trim();
+    if (!niche) {
+      document.getElementById('niche').focus();
+      return;
+    }
+
+    const btn = document.getElementById('suggestBtn');
+    const hint = document.getElementById('subreddit-hint');
+    const input = document.getElementById('subreddits');
+
+    btn.textContent = 'Thinking...';
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+
+    try {
+      const res = await fetch('http://localhost:8000/research/suggest-subreddits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          niche,
+          idea: document.getElementById('idea').value.trim(),
+          audience: document.getElementById('audience').value.trim()
+        })
+      });
+      const data = await res.json();
+      input.value = data.subreddits.join(', ');
+      hint.textContent = data.reasoning;
+    } catch (err) {
+      hint.textContent = 'Could not suggest subreddits — enter manually.';
+      console.error(err);
+    } finally {
+      btn.textContent = 'Suggest';
+      btn.style.opacity = '';
+      btn.style.pointerEvents = '';
+    }
+  }
+
+  async function startResearch() {
+    const niche = document.getElementById('niche').value.trim();
+    if (!niche) {
+      document.getElementById('niche').focus();
+      return;3
+    }
+
+    const idea = document.getElementById('idea').value.trim();
+    const audience = document.getElementById('audience').value.trim();
+    const subredditInput = document.getElementById('subreddits').value.trim();
+    const selectedSources = subredditInput 
+        ? subredditInput.split(',').map(s => s.trim()).filter(Boolean)
+        : ['digitalnomad', 'solotravel', 'remotework', 'entrepreneur'];
+
+    const bar = document.getElementById('loadingBar');
+    const fill = document.getElementById('loadingFill');
+    const text = document.getElementById('loadingText');
+    const btn = document.querySelector('.btn-primary');
+
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+    bar.classList.add('active');
+    text.classList.add('active');
+
+    try {
+      text.textContent = 'Running pain sourcing...';
+      fill.style.width = '20%';
+
+      const painRes = await fetch('http://localhost:8000/research/pain-sourcing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche, idea, audience, sources: selectedSources })
+      });
+      const painData = await painRes.json();
+
+      text.textContent = 'Mapping competitors...';
+      fill.style.width = '50%';
+
+      const compRes = await fetch('http://localhost:8000/research/competitor-mapping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ niche, idea, audience, sources: selectedSources })
+      });
+      const compData = await compRes.json();
+
+      text.textContent = 'Scoring and deciding...';
+      fill.style.width = '80%';
+
+      const scoreRes = await fetch('http://localhost:8000/research/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          niche, idea, audience, sources: selectedSources,
+          pain_points: painData,
+          competitors: compData
+        })
+      });
+      const scoreData = await scoreRes.json();
+
+      fill.style.width = '100%';
+      text.textContent = 'Complete.';
+
+      setTimeout(() => {
+        bar.classList.remove('active');
+        text.classList.remove('active');
+        btn.style.opacity = '';
+        btn.style.pointerEvents = '';
+        fill.style.width = '0%';
+        if (!Array.isArray(painData) || !Array.isArray(compData)) {
+          text.classList.add('active');
+          text.textContent = 'Error fetching data — check backend terminal.';
+          return;
+        }
+        displayResults(painData, compData, scoreData);
+      }, 600);
+
+    } catch (err) {
+      text.textContent = 'Error — is the backend running?';
+      btn.style.opacity = '';
+      btn.style.pointerEvents = '';
+      console.error(err);
+    }
+  }
+
+  function displayResults(pain, competitors, score) {
+    const verdictColor = score.verdict === 'GO' ? 'var(--accent)' : score.verdict === 'WATCH' ? 'var(--amber)' : 'var(--coral)';
+    
+    const painHTML = pain.map(p => `
+      <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <span style="font-size: 13.5px; font-weight: 500; color: var(--text-primary);">${p.theme}</span>
+          <div style="display: flex; gap: 6px;">
+            <span style="font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 100px; background: var(--surface-3); color: var(--text-secondary);">freq: ${p.frequency}</span>
+            <span style="font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 100px; background: var(--surface-3); color: var(--text-secondary);">intensity: ${p.intensity}</span>
+          </div>
+        </div>
+        <ul style="margin: 6px 0 0 16px; color: var(--text-secondary); font-size: 12.5px;">
+          ${p.evidence.map(e => `<li style="margin-bottom: 3px;">${e}</li>`).join('')}
+        </ul>
+      </div>
+    `).join('');
+
+    const compHTML = competitors.map(c => `
+      <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-size: 13.5px; font-weight: 500; color: var(--text-primary);">${c.name}</span>
+          <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary);">${c.pricing}</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Gap: ${c.gap}</div>
+      </div>
+    `).join('');
+
+    const nextStepsHTML = score.next_steps.map(s => `
+      <div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary);">
+        <span style="color: var(--accent); font-family: var(--font-mono); font-size: 11px; margin-top: 2px; flex-shrink: 0;">→</span>
+        ${s}
+      </div>
+    `).join('');
+
+    const flagsHTML = score.kill_criteria_flags.map(f => `
+      <div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary);">
+        <span style="color: var(--coral); font-family: var(--font-mono); font-size: 11px; margin-top: 2px; flex-shrink: 0;">⚑</span>
+        ${f}
+      </div>
+    `).join('');
+
+    const resultsHTML = `
+      <div class="input-panel" id="resultsPanel" style="margin-top: 0;">
+        <div class="input-panel-header">
+          <span class="panel-title">Research Results</span>
+          <button class="btn-ghost" style="font-size: 12px; padding: 6px 12px;" onclick="document.getElementById('resultsPanel').remove()">Clear</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
+          <div style="background: var(--surface-2); border-radius: var(--radius); padding: 16px;">
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">SCORE</div>
+            <div style="font-family: var(--font-display); font-size: 32px; font-weight: 700; color: ${verdictColor};">${score.score}</div>
+          </div>
+          <div style="background: var(--surface-2); border-radius: var(--radius); padding: 16px;">
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">VERDICT</div>
+            <div style="font-family: var(--font-display); font-size: 32px; font-weight: 700; color: ${verdictColor};">${score.verdict}</div>
+          </div>
+          <div style="background: var(--surface-2); border-radius: var(--radius); padding: 16px;">
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">PRICE RANGE</div>
+            <div style="font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--text-primary);">${score.suggested_price_range}</div>
+          </div>
+        </div>
+
+        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 24px; padding: 16px; background: var(--surface-2); border-radius: var(--radius);">
+          ${score.reasoning}
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Pain Points</div>
+          ${painHTML}
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Competitor Landscape</div>
+          ${compHTML}
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Next Steps</div>
+          ${nextStepsHTML}
+        </div>
+
+        <div>
+          <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Kill Criteria Flags</div>
+          ${flagsHTML}
+        </div>
+      </div>
+    `;
+
+    const main = document.querySelector('.main');
+    const existing = document.getElementById('resultsPanel');
+    if (existing) existing.remove();
+    main.insertAdjacentHTML('beforeend', resultsHTML);
+    document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
