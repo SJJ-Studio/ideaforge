@@ -333,3 +333,17 @@ async def get_sessions():
     except Exception as e:
         print(f"Sessions error: {e}")
         return []
+    
+# ── Reddit proxy ──────────────────────────────────────────────────────────────
+@app.get("/proxy/reddit")
+async def reddit_proxy(subreddit: str, q: str):
+    try:
+        url = f"https://www.reddit.com/r/{subreddit}/search.json?q={q}&limit=10&sort=relevance&t=year&restrict_sr=1"
+        async with httpx.AsyncClient(headers={"User-Agent": "ideaforge-research/0.1"}) as client_http:
+            res = await client_http.get(url)
+            if res.status_code == 403:
+                return {"data": {"children": []}}
+            return res.json()
+    except Exception as e:
+        print(f"Reddit proxy error: {e}")
+        return {"data": {"children": []}}

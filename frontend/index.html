@@ -1013,10 +1013,8 @@ loadStats();
     let rawText = "";
     for (const subreddit of subreddits) {
       try {
-        const url = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(niche)}&limit=10&sort=relevance&t=year&restrict_sr=1`;
-        const res = await fetch(url, {
-          headers: { 'Accept': 'application/json' }
-        });
+        const url = `https://ideaforge.up.railway.app/proxy/reddit?subreddit=${encodeURIComponent(subreddit)}&q=${encodeURIComponent(niche)}`;
+        const res = await fetch(url);
         if (!res.ok) continue;
         const data = await res.json();
         const posts = data?.data?.children || [];
