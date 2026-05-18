@@ -32,6 +32,7 @@ class ResearchRequest(BaseModel):
     idea: Optional[str] = None
     audience: Optional[str] = None
     sources: List[str] = ["reddit", "reviews", "g2", "competitors"]
+    raw_text: Optional[str] = None
 
 class SubredditSuggestion(BaseModel):
     subreddits: List[str]
@@ -113,28 +114,7 @@ async def pain_sourcing(req: ResearchRequest):
     # posts = reddit.subreddit("digitalnomad+solotravel").search(req.niche, limit=100)
     # raw_text = "\n".join([p.title + " " + p.selftext for p in posts])
 
-    async with httpx.AsyncClient(headers={"User-Agent": "ideaforge-research/0.1"}) as client_http:
-        subreddits = req.sources if req.sources else ["digitalnomad", "solotravel", "remotework", "entrepreneur"]
-        raw_text = ""
-        for subreddit in subreddits:
-            try:
-                url = f"https://www.reddit.com/r/{subreddit}/search.json?q={req.niche}&limit=10&sort=relevance&t=year&restrict_sr=1"
-                print(f"Fetching: {url}")
-                res = await client_http.get(url)
-                print(f"Status: {res.status_code}")
-                print(f"Response preview: {res.text[:200]}")
-                data = res.json()
-                posts = data.get("data", {}).get("children", [])
-                for post in posts:
-                    p = post.get("data", {})
-                    raw_text += f"{p.get('title', '')} {p.get('selftext', '')}\n"
-            except Exception as e:
-                print(f"Error on {subreddit}: {e}")
-                continue
-
-        raw_text = raw_text[:8000]    
-        if not raw_text.strip():
-            raw_text = f"No Reddit data found for niche: {req.niche}"
+    raw_text = req.raw_text or f"No data provided for niche: {req.niche}"
 
     prompt = f"""
     You are a market research analyst helping an indie developer find product opportunities.

@@ -1009,6 +1009,28 @@ loadStats();
     }
   }
 
+  async function fetchRedditData(niche, subreddits) {
+    let rawText = "";
+    for (const subreddit of subreddits) {
+      try {
+        const url = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(niche)}&limit=10&sort=relevance&t=year&restrict_sr=1`;
+        const res = await fetch(url, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const posts = data?.data?.children || [];
+        for (const post of posts) {
+          const p = post.data;
+          rawText += `${p.title || ''} ${p.selftext || ''}\n`;
+        }
+      } catch (err) {
+        console.warn(`Skipped ${subreddit}:`, err);
+      }
+    }
+    return rawText.slice(0, 8000);
+  }
+
   async function startResearch() {
     const niche = document.getElementById('niche').value.trim();
     if (!niche) {
@@ -1034,13 +1056,18 @@ loadStats();
     text.classList.add('active');
 
     try {
+      text.textContent = 'Fetching Reddit data...';
+      fill.style.width = '10%';
+
+      const rawText = await fetchRedditData(niche, selectedSources);
+
       text.textContent = 'Running pain sourcing...';
-      fill.style.width = '20%';
+      fill.style.width = '25%';
 
       const painRes = await fetch('https://ideaforge.up.railway.app/research/pain-sourcing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche, idea, audience, sources: selectedSources })
+        body: JSON.stringify({ niche, idea, audience, sources: selectedSources, raw_text: rawText })
       });
       const painData = await painRes.json();
 
