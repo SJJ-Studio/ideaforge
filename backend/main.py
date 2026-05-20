@@ -115,8 +115,6 @@ async def pain_sourcing(req: ResearchRequest):
     # raw_text = "\n".join([p.title + " " + p.selftext for p in posts])
 
     raw_text = req.raw_text or f"No data provided for niche: {req.niche}"
-    print(f"Raw text length: {len(raw_text)}")
-    print(f"Raw text preview: {raw_text[:200]}")
 
     prompt = f"""
     You are a market research analyst helping an indie developer find product opportunities.
@@ -251,10 +249,7 @@ async def score_idea(req: ScoreRequest):
     - next_steps (array of 3 concrete next actions)
     
     No markdown, no explanation, just valid JSON.
-    """
-
-    print(f"Pain points received: {len(req.pain_points)}")
-    print(f"Competitors received: {len(req.competitors)}")  
+    """ 
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
