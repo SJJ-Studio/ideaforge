@@ -317,6 +317,8 @@ async def score_idea(req: ScoreRequest):
                 "subreddits": req.sources,
                 "pain_points": [p.dict() for p in req.pain_points],
                 "competitors": [c.dict() for c in req.competitors],
+                "description": req.description,
+                "adjacent_opportunities": result.get("adjacent_opportunities", []),
                 "score": result["score"],
                 "verdict": result["verdict"],
                 "reasoning": result["reasoning"],
