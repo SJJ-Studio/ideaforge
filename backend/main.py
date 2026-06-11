@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
+from playwright.async_api import async_playwright
 import anthropic
 import httpx
 import os
@@ -31,6 +32,7 @@ class ResearchRequest(BaseModel):
     niche: str
     idea: Optional[str] = None
     audience: Optional[str] = None
+    description: Optional[str] = None
     sources: List[str] = ["reddit", "reviews", "g2", "competitors"]
     raw_text: Optional[str] = None
 
@@ -47,6 +49,7 @@ class PainPoint(BaseModel):
 class CompetitorResult(BaseModel):
     name: str
     pricing: str
+    pricing_model: str  
     strengths: List[str]
     weaknesses: List[str]
     gap: str
@@ -55,6 +58,7 @@ class ScoreRequest(BaseModel):
     niche: str
     idea: Optional[str] = None
     audience: Optional[str] = None
+    description: Optional[str] = None
     sources: List[str] = ["reddit", "reviews", "g2", "competitors"]
     pain_points: List[PainPoint] = []
     competitors: List[CompetitorResult] = []
@@ -66,6 +70,7 @@ class ScoreResult(BaseModel):
     suggested_price_range: str
     kill_criteria_flags: List[str]
     next_steps: List[str]
+    adjacent_opportunities: List[str]
 
 # ── Module 0: Subreddit Suggestion ───────────────────────────────────────────────────
 @app.post("/research/suggest-subreddits", response_model=SubredditSuggestion)
@@ -95,7 +100,9 @@ async def suggest_subreddits(req: ResearchRequest):
 
     import json
     try:
-        result = json.loads(message.content[0].text)
+        raw = message.content[0].text
+        clean = raw.replace("```json", "").replace("```", "").strip()
+        result = json.loads(clean)
         return result
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to parse Claude response")
@@ -143,7 +150,9 @@ async def pain_sourcing(req: ResearchRequest):
 
     import json
     try:
-        result = json.loads(message.content[0].text)
+        raw = message.content[0].text
+        clean = raw.replace("```json", "").replace("```", "").strip()
+        result = json.loads(clean)
         return result
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to parse Claude response")
@@ -153,16 +162,28 @@ async def pain_sourcing(req: ResearchRequest):
 
 @app.post("/research/competitor-mapping", response_model=List[CompetitorResult])
 async def competitor_mapping(req: ResearchRequest):
-    """
-    Analyze competitors using Claude. In production: use Playwright to scrape
-    pricing pages and review sites, feed that raw HTML/text into this prompt.
-    """
-    # TODO: Real competitor scraping
-    # async with async_playwright() as p:
-    #     browser = await p.chromium.launch()
-    #     page = await browser.new_page()
-    #     await page.goto("https://wanderlog.com/pricing")
-    #     pricing_text = await page.inner_text("body")
+    # Try live scraping first, fall back to Claude knowledge
+    scraped_data = ""
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            # Search G2 for competitors in this niche
+            await page.goto(f"https://www.g2.com/search?query={req.niche}", timeout=15000)
+            await page.wait_for_timeout(2000)
+            
+            # Extract product names and ratings
+            content = await page.inner_text("body")
+            scraped_data = content[:5000]
+            print(f"Scraped data length: {len(scraped_data)}")
+            print(f"Scraped preview: {scraped_data[:200]}")
+            
+            await browser.close()
+    except Exception as e:
+        print(f"Playwright scraping failed, using Claude knowledge: {e}")
+        scraped_data = ""
 
     prompt = f"""
     You are a competitive intelligence analyst.
@@ -170,10 +191,14 @@ async def competitor_mapping(req: ResearchRequest):
     Niche: "{req.niche}"
     Specific idea: {req.idea or "not specified"}
     
-    Identify 3-4 real competitor tools in this space (use your training knowledge).
+    {"Here is live data scraped from G2:" if scraped_data else "Use your training knowledge to identify competitors."}
+    {scraped_data if scraped_data else ""}
+    
+    Identify 3-4 real competitor tools in this space.
     For each provide:
     - name: product name
     - pricing: what they charge (free / freemium / price per month)
+    - pricing_model: the pricing structure (one-time / subscription / freemium / per-use / free)
     - strengths: list of 2-3 things they do well
     - weaknesses: list of 2-3 things users complain about
     - gap: one sentence on the specific gap they leave open
@@ -189,11 +214,12 @@ async def competitor_mapping(req: ResearchRequest):
 
     import json
     try:
-        result = json.loads(message.content[0].text)
+        raw = message.content[0].text
+        clean = raw.replace("```json", "").replace("```", "").strip()
+        result = json.loads(clean)
         return result
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to parse Claude response")
-
 
 # ── Module 3: Scoring & Decision ─────────────────────────────────────────────
 
@@ -209,57 +235,80 @@ async def score_idea(req: ScoreRequest):
     ])
 
     competitor_summary = "\n".join([
-        f"- {c.name}: {c.pricing} | Gap: {c.gap}"
+        f"- {c.name}: {c.pricing} ({c.pricing_model}) | Gap: {c.gap}"
         for c in req.competitors
     ])
 
     prompt = f"""
-    You are an experienced indie maker and startup validator.
+    You are an experienced indie maker and startup validator with a strong bias toward realistic outcomes for solo developers.
     
-    Evaluate this product idea using a rigorous scoring framework.
+    Evaluate this product idea using a rigorous scoring framework. Be conservative and critical — most ideas do not deserve a GO verdict.
     
     NICHE: {req.niche}
     IDEA: {req.idea or "undefined — evaluate the niche broadly"}
     AUDIENCE: {req.audience or "not specified"}
+    PRODUCT DESCRIPTION: {req.description or "not provided — evaluate the niche and idea broadly, making reasonable assumptions"}
     
     PAIN POINTS FOUND:
     {pain_summary or "None provided yet"}
     
     COMPETITOR LANDSCAPE:
     {competitor_summary or "None provided yet"}
+
+    COMPETITOR PRICING MODELS: {", ".join(set([c.pricing_model for c in req.competitors]))}
+
+    When recommending a suggested_price_range, align with the pricing models already validated in this market unless there is a strong reason to deviate. Justify any deviation in the reasoning.
     
-    Score this opportunity from 0-100 based on:
-    - Pain frequency and intensity (25 points)
-    - Willingness to pay signal (20 points)  
+    Score this opportunity from 0-100 based on these criteria. Apply each honestly and penalize heavily where warranted:
+    
+    - Pain frequency and intensity (20 points)
+      Full points only if pain is severe, frequent, and not adequately solved. Deduct heavily if pain is mild or users have workarounds they're satisfied with.
+    
+    - Willingness to pay signal (20 points)
+      Full points only if there is clear evidence people are already paying for solutions in this space or expressing strong frustration with free options. Deduct if the audience expects free tools.
+    
     - Gap size vs competitors (20 points)
-    - Reachability of target audience (20 points)
-    - Buildability by a solo developer (15 points)
+      Full points only if incumbents are clearly failing a specific underserved segment. Deduct heavily if well-funded competitors (VC-backed, large teams, strong brand) already dominate. A niche with Duolingo, Adobe, or similar dominant players scores very low here regardless of pain points.
     
-    Verdict rules:
-    - 70+ = GO (strong signal, move to user interviews)
-    - 40-69 = WATCH (some signal, needs more validation)
-    - Under 40 = KILL (insufficient signal, move on)
+    - Reachability of target audience (20 points)
+      Full points if the audience is concentrated in specific communities a solo developer can reach without paid acquisition. Deduct if the audience is broad, fragmented, or requires significant marketing budget to reach.
+    
+    - Buildability by a solo developer using AI-assisted development (20 points)
+      This developer uses AI coding tools (Claude, Cursor, etc.) to accelerate development significantly beyond traditional solo speed. Full points if a compelling MVP can be built in 2-6 weeks with AI assistance and reach $500 MRR within 6 months. Deduct if the idea requires significant ongoing manual data maintenance, regulatory compliance, large curated content libraries, or network effects to be useful at launch. Do not penalize for technical complexity alone — AI assistance makes most standard web/mobile development tractable for a single developer.
+
+    Verdict rules — apply strictly:
+    - 70+ = GO (clear underserved niche, reachable audience, solo buildable, real willingness to pay signal)
+    - 55-69 = VIABLE (real opportunity with specific addressable risks — flags are a pre-build checklist, not dealbreakers)
+    - 40-54 = WATCH (meaningful structural issues — pivot the angle or validate the core assumption before considering a build)
+    - Under 40 = KILL (insufficient signal, too competitive, or not solo buildable — move on)
     
     Respond in JSON only with keys:
     - score (integer 0-100)
-    - verdict (GO / WATCH / KILL)
-    - reasoning (2-3 sentences)
-    - suggested_price_range (e.g. "$8-15/month")
-    - kill_criteria_flags (array of strings — things that could kill this idea)
-    - next_steps (array of 3 concrete next actions)
+    - verdict (GO / VIABLE / WATCH / KILL)
+    - reasoning (2-3 sentences explaining the score with specific reference to the strongest and weakest criteria)
+    - suggested_price_range (e.g. "$8-15/month" — based on what comparable tools charge and what this audience will pay)
+    - kill_criteria_flags (array of 3-5 specific strings identifying the biggest risks that could kill this idea)
+    - next_steps (array of 3 concrete next actions a solo developer should take before writing any code)
+    - adjacent_opportunities (array of 2-3 strings — specific alternative product ideas or feature angles identified from the pain point data that may have less competition or better product-market fit than the submitted idea. Be specific, not generic.)
     
     No markdown, no explanation, just valid JSON.
-    """ 
+    """
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+    except Exception as e:
+        print(f"Score Claude error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
     import json
     try:
-        result = json.loads(message.content[0].text)
+        raw = message.content[0].text
+        clean = raw.replace("```json", "").replace("```", "").strip()
+        result = json.loads(clean)
         try:
             supabase.table("sessions").insert({
                 "niche": req.niche,
@@ -278,7 +327,8 @@ async def score_idea(req: ScoreRequest):
         except Exception as e:
             print(f"Failed to save session: {e}")
         return result
-    except Exception:
+    except Exception as e:
+        print(f"JSON parse error: {e}")
         raise HTTPException(status_code=500, detail="Failed to parse Claude response")
 
 
@@ -323,12 +373,22 @@ async def get_stats():
 @app.get("/sessions")
 async def get_sessions():
     try:
-        sessions = supabase.table("sessions").select("*").order("created_at", desc=True).execute()
+        sessions = supabase.table("sessions").select("*").order("created_at", desc=True).limit(1000).execute()
         return sessions.data
     except Exception as e:
         print(f"Sessions error: {e}")
         return []
     
+# ── Session detail ────────────────────────────────────────────────────────────
+@app.get("/sessions/{session_id}")
+async def get_session(session_id: str):
+    try:
+        result = supabase.table("sessions").select("*").eq("id", session_id).single().execute()
+        return result.data
+    except Exception as e:
+        print(f"Session detail error: {e}")
+        raise HTTPException(status_code=404, detail="Session not found")
+
 # ── Reddit proxy ──────────────────────────────────────────────────────────────
 @app.get("/proxy/reddit")
 async def reddit_proxy(subreddit: str, q: str):

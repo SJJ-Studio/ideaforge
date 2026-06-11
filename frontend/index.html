@@ -441,7 +441,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      overflow: hidden;
+      overflow: auto;
     }
 
     .sessions-header {
@@ -530,6 +530,7 @@
     }
 
     .verdict.go { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(212,240,160,0.2); }
+    .verdict.viable { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(212,240,160,0.2); }
     .verdict.watch { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(240,192,96,0.2); }
     .verdict.kill { background: var(--coral-dim); color: var(--coral); border: 1px solid rgba(240,128,112,0.2); }
 
@@ -745,6 +746,11 @@
       </div>
 
       <div class="field" style="margin-bottom: 16px;">
+          <label>Product Description (optional)</label>
+          <textarea id="description" placeholder="Describe specifically what you're building, how it works, key differentiators, and what it doesn't do. More detail = more accurate scoring."></textarea>
+      </div>
+
+      <div class="field" style="margin-bottom: 16px;">
         <label>Subreddits</label>
         <div style="display: flex; gap: 8px;">
             <input type="text" id="subreddits" placeholder="Click suggest or enter manually, comma separated" style="flex: 1;" />
@@ -830,58 +836,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Sessions -->
-    <div class="sessions-panel">
-      <div class="sessions-header">
-        <span class="sessions-title">Recent Sessions</span>
-        <button class="btn-ghost" style="font-size: 12px; padding: 6px 12px;">View All</button>
-      </div>
-
-      <div class="session-row">
-        <div>
-          <div class="session-name">Nomad Planning Tool</div>
-          <div class="session-niche">Travel Planning · Long-term nomads</div>
-        </div>
-        <div class="session-col">Reddit, Reviews,<br/>Competitors</div>
-        <div class="session-col">2 days ago</div>
-        <div class="score-bar">
-          <div class="score-track"><div class="score-fill high" style="width: 74%"></div></div>
-          <span class="score-val">74</span>
-        </div>
-        <div class="verdict go">GO</div>
-      </div>
-
-      <div class="session-row">
-        <div>
-          <div class="session-name">Gamified Finance App</div>
-          <div class="session-niche">Personal Finance · Gen Z investors</div>
-        </div>
-        <div class="session-col">Reddit, G2</div>
-        <div class="session-col">5 days ago</div>
-        <div class="score-bar">
-          <div class="score-track"><div class="score-fill mid" style="width: 51%"></div></div>
-          <span class="score-val">51</span>
-        </div>
-        <div class="verdict watch">WATCH</div>
-      </div>
-
-      <div class="session-row">
-        <div>
-          <div class="session-name">AI Resume Builder</div>
-          <div class="session-niche">Career Tools · Job seekers</div>
-        </div>
-        <div class="session-col">App Reviews, G2</div>
-        <div class="session-col">12 days ago</div>
-        <div class="score-bar">
-          <div class="score-track"><div class="score-fill low" style="width: 28%"></div></div>
-          <span class="score-val">28</span>
-        </div>
-        <div class="verdict kill">KILL</div>
-      </div>
-
-    </div>
-
   </main>
 </div>
 
@@ -903,15 +857,15 @@
 
     if (page === 'sessions') {
       try {
-        const res = await fetch('https://ideaforge.up.railway.app/sessions');
+        const res = await fetch('http://localhost:8000/sessions');
         const sessions = await res.json();
 
         const rows = sessions.map(s => {
           const date = new Date(s.created_at).toLocaleDateString();
-          const verdictClass = s.verdict === 'GO' ? 'go' : s.verdict === 'WATCH' ? 'watch' : 'kill';
+          const verdictClass = s.verdict === 'GO' ? 'go' : s.verdict === 'VIABLE' ? 'viable' : s.verdict === 'WATCH' ? 'watch' : 'kill';
           const scoreClass = s.score >= 70 ? 'high' : s.score >= 40 ? 'mid' : 'low';
           return `
-            <div class="session-row">
+            <div class="session-row" onclick="loadSession('${s.id}')">
               <div>
                 <div class="session-name">${s.idea || s.niche}</div>
                 <div class="session-niche">${s.niche} · ${s.audience || 'general'}</div>
@@ -955,7 +909,7 @@
 
   async function loadStats() {
     try {
-      const res = await fetch('https://ideaforge.up.railway.app/stats');
+      const res = await fetch('http://localhost:8000/stats');
       const data = await res.json();
       
       document.getElementById('statNiches').textContent = data.unique_niches;
@@ -969,7 +923,7 @@
     }
   }
 
-loadStats();
+document.addEventListener('DOMContentLoaded', loadStats);
 
   async function suggestSubreddits() {
     const niche = document.getElementById('niche').value.trim();
@@ -987,7 +941,7 @@ loadStats();
     btn.style.pointerEvents = 'none';
 
     try {
-      const res = await fetch('https://ideaforge.up.railway.app/research/suggest-subreddits', {
+      const res = await fetch('http://localhost:8000/research/suggest-subreddits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1013,7 +967,7 @@ loadStats();
     let rawText = "";
     for (const subreddit of subreddits) {
       try {
-        const url = `https://ideaforge.up.railway.app/proxy/reddit?subreddit=${encodeURIComponent(subreddit)}&q=${encodeURIComponent(niche)}`;
+        const url = `http://localhost:8000/proxy/reddit?subreddit=${encodeURIComponent(subreddit)}&q=${encodeURIComponent(niche)}`;
         const res = await fetch(url);
         if (!res.ok) continue;
         const data = await res.json();
@@ -1029,6 +983,42 @@ loadStats();
     return rawText.slice(0, 8000);
   }
 
+  async function loadSession(id) {
+    try {
+      const res = await fetch(`http://localhost:8000/sessions/${id}`);
+      const s = await res.json();
+      
+      const main = document.querySelector('.main');
+      main.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="btn-ghost" onclick="setPageDirect('sessions')" style="font-size: 12px; padding: 6px 12px;">← Back</button>
+          <div class="page-title">${s.idea || s.niche}</div>
+        </div>
+        ${buildResultsHTML(
+          s.pain_points || [],
+          s.competitors || [],
+          {
+            score: s.score,
+            verdict: s.verdict,
+            reasoning: s.reasoning,
+            suggested_price_range: s.suggested_price_range,
+            kill_criteria_flags: s.kill_criteria_flags || [],
+            next_steps: s.next_steps || []
+          }
+        )}
+      `;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function setPageDirect(page) {
+    const navItem = [...document.querySelectorAll('.nav-item')].find(n => 
+      n.getAttribute('onclick')?.includes(page)
+    );
+    if (navItem) navItem.click();
+  }
+
   async function startResearch() {
     const niche = document.getElementById('niche').value.trim();
     if (!niche) {
@@ -1038,6 +1028,7 @@ loadStats();
 
     const idea = document.getElementById('idea').value.trim();
     const audience = document.getElementById('audience').value.trim();
+    const description = document.getElementById('description').value.trim();
     const subredditInput = document.getElementById('subreddits').value.trim();
     const selectedSources = subredditInput 
         ? subredditInput.split(',').map(s => s.trim()).filter(Boolean)
@@ -1064,31 +1055,31 @@ loadStats();
       text.textContent = 'Running pain sourcing...';
       fill.style.width = '25%';
 
-      const painRes = await fetch('https://ideaforge.up.railway.app/research/pain-sourcing', {
+      const painRes = await fetch('http://localhost:8000/research/pain-sourcing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche, idea, audience, sources: selectedSources, raw_text: rawText })
+        body: JSON.stringify({ niche, idea, audience, description, sources: selectedSources, raw_text: rawText })
       });
       const painData = await painRes.json();
 
       text.textContent = 'Mapping competitors...';
       fill.style.width = '50%';
 
-      const compRes = await fetch('https://ideaforge.up.railway.app/research/competitor-mapping', {
+      const compRes = await fetch('http://localhost:8000/research/competitor-mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ niche, idea, audience, sources: selectedSources })
+        body: JSON.stringify({ niche, idea, audience, description, sources: selectedSources })
       });
       const compData = await compRes.json();
 
       text.textContent = 'Scoring and deciding...';
       fill.style.width = '80%';
 
-      const scoreRes = await fetch('https://ideaforge.up.railway.app/research/score', {
+      const scoreRes = await fetch('http://localhost:8000/research/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          niche, idea, audience, sources: selectedSources,
+          niche, idea, audience, description, sources: selectedSources,
           pain_points: painData,
           competitors: compData
         })
@@ -1120,10 +1111,10 @@ loadStats();
     }
   }
 
-  function displayResults(pain, competitors, score) {
-    const verdictColor = score.verdict === 'GO' ? 'var(--accent)' : score.verdict === 'WATCH' ? 'var(--amber)' : 'var(--coral)';
-    
-    const painHTML = pain.map(p => `
+  function buildResultsHTML(pain, competitors, score) {
+    const verdictColor = score.verdict === 'GO' ? 'var(--accent)' : score.verdict === 'VIABLE' ? 'var(--accent)' : score.verdict === 'WATCH' ? 'var(--amber)' : 'var(--coral)';
+
+    const painHTML = (pain || []).map(p => `
       <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
           <span style="font-size: 13.5px; font-weight: 500; color: var(--text-primary);">${p.theme}</span>
@@ -1138,7 +1129,7 @@ loadStats();
       </div>
     `).join('');
 
-    const compHTML = competitors.map(c => `
+    const compHTML = (competitors || []).map(c => `
       <div style="padding: 12px 0; border-bottom: 1px solid var(--border);">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
           <span style="font-size: 13.5px; font-weight: 500; color: var(--text-primary);">${c.name}</span>
@@ -1148,27 +1139,29 @@ loadStats();
       </div>
     `).join('');
 
-    const nextStepsHTML = score.next_steps.map(s => `
+    const nextStepsHTML = (score.next_steps || []).map(s => `
       <div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary);">
         <span style="color: var(--accent); font-family: var(--font-mono); font-size: 11px; margin-top: 2px; flex-shrink: 0;">→</span>
         ${s}
       </div>
     `).join('');
 
-    const flagsHTML = score.kill_criteria_flags.map(f => `
+    const flagsHTML = (score.kill_criteria_flags || []).map(f => `
       <div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary);">
         <span style="color: var(--coral); font-family: var(--font-mono); font-size: 11px; margin-top: 2px; flex-shrink: 0;">⚑</span>
         ${f}
       </div>
     `).join('');
 
-    const resultsHTML = `
-      <div class="input-panel" id="resultsPanel" style="margin-top: 0;">
-        <div class="input-panel-header">
-          <span class="panel-title">Research Results</span>
-          <button class="btn-ghost" style="font-size: 12px; padding: 6px 12px;" onclick="document.getElementById('resultsPanel').remove()">Clear</button>
-        </div>
+    const opportunitiesHTML = (score.adjacent_opportunities || []).map(o => `
+      <div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary);">
+        <span style="color: var(--blue); font-family: var(--font-mono); font-size: 11px; margin-top: 2px; flex-shrink: 0;">◆</span>
+        ${o}
+      </div>
+    `).join('');
 
+    return `
+      <div class="input-panel">
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
           <div style="background: var(--surface-2); border-radius: var(--radius); padding: 16px;">
             <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">SCORE</div>
@@ -1207,14 +1200,24 @@ loadStats();
           <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Kill Criteria Flags</div>
           ${flagsHTML}
         </div>
+
+        <div style="margin-top: 24px;">
+          <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Adjacent Opportunities</div>
+          ${opportunitiesHTML}
+        </div>
       </div>
     `;
+  }
 
+  function displayResults(pain, competitors, score) {
     const main = document.querySelector('.main');
     const existing = document.getElementById('resultsPanel');
     if (existing) existing.remove();
-    main.insertAdjacentHTML('beforeend', resultsHTML);
-    document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth' });
+    const div = document.createElement('div');
+    div.id = 'resultsPanel';
+    div.innerHTML = buildResultsHTML(pain, competitors, score);
+    main.appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth' });
   }
 </script>
 </body>
